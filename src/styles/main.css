@@ -1,0 +1,233 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   Tokens — Direction artistique « Luxury Tech »
+   Le noir domine, le doré souligne.
+   ============================================================ */
+@theme {
+  --color-ink: #050505; /* fond principal */
+  --color-ink-2: #0d0d0d; /* fonds secondaires */
+  --color-ink-3: #111111; /* fonds secondaires */
+  --color-surface: #161616; /* cartes */
+  --color-surface-2: #1b1b1b; /* cartes survolées / surélevées */
+  --color-line: #252525; /* bordures fines */
+  --color-line-2: #303030; /* bordures plus fortes */
+  --color-paper: #f5f5f5; /* texte principal */
+  --color-muted: #a1a1aa; /* texte secondaire (contraste AA sur ink) */
+  --color-gold: #c6ad7a; /* doré champagne — actions, actifs */
+  --color-gold-deep: #a88d59; /* doré discret — détails, séparateurs */
+  --color-danger: #e6a3a3; /* erreurs, sobres et lisibles */
+  --color-success: #a9c9ac; /* succès, sobres et lisibles */
+  --color-warning: #d9c089; /* avertissements, sobres */
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo,
+    Consolas, monospace;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.25);
+  --shadow-pop: 0 12px 40px rgb(0 0 0 / 0.55);
+
+  --animate-rise: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--color-gold);
+    color: var(--color-ink);
+  }
+
+  /* Focus visible — accessibilité clavier */
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+    letter-spacing: -0.015em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Scrollbar discrète */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-2) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-line-2);
+    border-radius: 8px;
+    border: 3px solid var(--color-ink);
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Formulaire : éviter l'auto-zoom iOS sur les champs < 16px */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  @media (min-width: 768px) {
+    input,
+    textarea,
+    select {
+      font-size: 15px;
+    }
+  }
+}
+
+/* ============================================================
+   Composants utilitaires (classiques, réutilisés partout)
+   ============================================================ */
+@layer components {
+  .container-page {
+    width: 100%;
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 768px) {
+    .container-page {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* Carte anthracite : surface, bordure fine, ombre discrète */
+  .panel {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Filet doré discret — séparateur de section */
+  .rule-gold {
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      var(--color-gold-deep),
+      transparent 70%
+    );
+    border: 0;
+  }
+
+  /* Lien discret avec soulignement doré au survol */
+  .link-quiet {
+    color: var(--color-muted);
+    transition: color 0.2s ease;
+  }
+
+  .link-quiet:hover {
+    color: var(--color-gold);
+  }
+
+  /* Barre de chargement légère */
+  .spinner {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid var(--color-line-2);
+    border-top-color: var(--color-gold);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  /* Châssis A4 pour la prévisualisation du CV */
+  .a4-sheet {
+    width: 100%;
+    max-width: 794px; /* 210mm à 96dpi */
+    min-height: 1123px; /* 297mm à 96dpi */
+    background: #ffffff;
+    color: #1f2937;
+    margin-inline: auto;
+    box-shadow: var(--shadow-pop);
+  }
+}
+
+/* ============================================================
+   Accessibilité — mouvement réduit
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   Impression (page /cv/:slug → « Imprimer »)
+   ============================================================ */
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .a4-sheet {
+    box-shadow: none;
+    max-width: none;
+    min-height: auto;
+  }
+}
