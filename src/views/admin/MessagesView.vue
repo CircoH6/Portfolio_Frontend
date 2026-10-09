@@ -32,10 +32,10 @@ const statusTone = (s) =>
   s === 'new' ? 'gold' : s === 'replied' ? 'success' : s === 'archived' ? 'neutral' : 'neutral'
 
 function formatDate(iso) {
-  if (!iso) return '�?"'
+  if (!iso) return '—'
   const d = new Date(iso)
   return Number.isNaN(d.getTime())
-    ? '�?"'
+    ? '—'
     : d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
@@ -53,7 +53,7 @@ load().catch(() => {})
 async function open(message) {
   try {
     opened.value = await messagesService.get(message.id)
-    // Rafraîchit la liste (le statut 'new' �?' 'read' a changé côté serveur).
+    // Rafraîchit la liste (le statut 'new' → 'read' a changé côté serveur).
     if (message.status === 'new') {
       page.value = 1
       await load()
@@ -70,7 +70,7 @@ async function changeStatus(message, status) {
     toast.success('Statut mis à jour.')
     await load()
   } catch (error) {
-    toast.error(error?.message || '�?chec de la mise à jour du statut.')
+    toast.error(error?.message || 'Échec de la mise à jour du statut.')
   } finally {
     updating.value = false
   }
@@ -90,7 +90,7 @@ async function remove(message) {
     if (crud.items.value.length === 1 && page.value > 1) page.value -= 1
     await load()
   } catch (error) {
-    toast.error(error?.message || '�?chec de la suppression.')
+    toast.error(error?.message || 'Échec de la suppression.')
   }
 }
 
@@ -128,7 +128,7 @@ function goToPage(next) {
       </div>
     </div>
 
-    <LoadingState v-if="crud.loading.value" label="Chargement�?�" />
+    <LoadingState v-if="crud.loading.value" label="Chargement…" />
     <ErrorState v-else-if="crud.error.value" :error="crud.error.value" @retry="load()" />
 
     <template v-else>
@@ -149,7 +149,7 @@ function goToPage(next) {
                 <div class="text-xs text-muted">{{ m.email }}</div>
               </td>
               <td class="max-w-xs px-4 py-3">
-                <span class="block truncate text-paper">{{ m.subject || '�?"' }}</span>
+                <span class="block truncate text-paper">{{ m.subject || '—' }}</span>
               </td>
               <td class="px-4 py-3">
                 <AppBadge :tone="statusTone(m.status)">{{ MESSAGE_STATUS_LABELS[m.status] || m.status }}</AppBadge>
@@ -198,7 +198,7 @@ function goToPage(next) {
             </div>
             <AppBadge :tone="statusTone(m.status)">{{ MESSAGE_STATUS_LABELS[m.status] || m.status }}</AppBadge>
           </div>
-          <p class="mt-2 truncate text-sm text-paper">{{ m.subject || '�?"' }}</p>
+          <p class="mt-2 truncate text-sm text-paper">{{ m.subject || '—' }}</p>
           <p class="mt-1 text-xs text-muted">{{ formatDate(m.created_at) }}</p>
           <div class="mt-3 flex justify-end gap-2 border-t border-line pt-3">
             <button

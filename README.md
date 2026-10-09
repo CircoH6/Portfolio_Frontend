@@ -148,10 +148,26 @@ charge `data` de l'enveloppe `{ success, message, data }`.
   reconstruit côté front (`utils/cv-data.js` reproduit `CvBuilderService` :
   groupement des compétences par catégorie, formats de dates `m/Y`/`Y`, filtrage
   des contacts selon `show_*`). Le **PDF backend (DomPDF) reste la référence**.
-- **Flags de visibilité** : `is_visible`/`is_public`/`is_primary` sont acceptés
-  en écriture par le backend mais **non renvoyés par les Resources admin** ;
-  les interrupteurs affichent une mention indiquant que la valeur remplacera le
-  réglage existant à l'enregistrement (pas de faux état actif).
+- **Flags de visibilité** — vérifié ressource par ressource dans le backend
+  (`app/Http/Resources/*`). L'affirmation précédente (« aucun flag renvoyé »)
+  était **fausse** ; voici l'état réel :
+
+  | Resource | Flags réellement renvoyés |
+  | -------- | ------------------------- |
+  | `ProjectResource` | `is_visible` (**admin uniquement**, `null` en public), `is_featured` |
+  | `ContactMethodResource` | `is_primary`, `display_order` — **pas** `is_public` |
+  | `CvProfileResource` | `is_public`, `is_default` |
+  | `SkillResource` / `SkillCategoryResource` | aucun flag de visibilité |
+  | `ExperienceResource` / `EducationResource` | `is_current` seulement |
+  | `CertificationResource` / `LanguageResource` | aucun |
+  | `ContactMessageResource` | `status` (`new`/`read`/`replied`/`archived`), `read_at` |
+
+  Conséquence : les vues Projet affichent l'état réel de `is_visible` ; les
+  vues Compétences, Catégories, Expériences, Formations, Certifications,
+  Langues et Moyens de contact conservent une mention indiquant que la valeur
+  remplacera le réglage existant à l'enregistrement (pas de faux état actif).
+  `ProjectResource` est la seule Resource à calculer `$isAdmin`.
+
 - **Modèle de CV** : seul `default` existe côté backend ; le sélecteur le propose
   sans inventer d'autres modèles.
 - **`/admin/settings`** : pas d'endpoint dédié → préférences locales (thème
@@ -159,17 +175,17 @@ charge `data` de l'enveloppe `{ success, message, data }`.
 - **Statistiques du tableau de bord** : issues exclusivement des compteurs
   fournis par l'API (`pagination.total`, `unread_count`) ; aucun indicateur
   inventé, aucun bloc affiché si la donnée est absente.
-- **Tests live** : non exécutés — le backend n'était pas joignable sur cette
-  machine (service MySQL absent et driver `pdo_sqlite` indisponible dans le PHP
-  installé). La validation réseau s'appuie sur les tests unitaires ci-dessous
-  (client Axios simulé) et sur la conformité au contrat vérifié dans le code
-  backend.
+- **Tests live** : non exécutés. Le backend a depuis été cloné et **lu**
+  (voir § 9 bis), mais jamais **exécuté** ici : aucun PHP ni SGBD dans cet
+  environnement. La conformité au contrat est donc établie par lecture du code
+  (`routes/api.php`, Form Requests, Resources, `CvBuilderService`), pas par un
+  échange HTTP réel. Les tests automatisés s'appuient sur un Axios simulé.
 
 ## 9. Résultats des tests exécutés
 
 ```
 npm run build   → succès (dist/ généré, aucune erreur de compilation)
-npm test        → 10 fichiers, 80 tests, tous verts
+npm test        → 11 fichiers, 85 tests, tous verts
 ```
 
 - `api-client.spec.js` — intercepteurs, enveloppe, 401/422/404, erreur réseau.
@@ -212,21 +228,75 @@ ainsi que `prefers-reduced-motion` et `focus-visible`, sont bien émis.
   corps d'erreur JSON arrivait sous forme de `Blob` et produisait un message
   générique (« Erreur serveur (500). »). L'intercepteur décode maintenant ces
   corps pour restituer le message réel du backend.
+- **Texte corrompu dans trois vues admin** (`MessagesView`, `CvListView`,
+  `ProjectsView`) : double encodage UTF‑8 (`Ã©`, `Â«`), caractères de
+  remplacement `U+FFFD` et `ï¿½`. À l'écran cela donnait
+  `Chargement??` au lieu de `Chargement…`, `?chec de la suppression` au lieu
+  d'`Échec de la suppression`, `Supprimer Â« x Â»` au lieu de
+  `Supprimer « x »`, et `—` dégradé en `?"`. Les 14 occurrences sont réparées
+  et un BOM UTF‑8 préexistant a été retiré de deux fichiers.
+  Verrouillé par `encoding.spec.js` (garde‑fou qui **échoue — 4 tests —
+  contre les fichiers corrompus**).
 - Suppression de `src/_enc_test.txt`, fichier de brouillon (test d'encodage)
-  référencé nulle part.
+  référencé nulle part — il testait précisément les caractères ci-dessus.
 - `vite.config.js` : `host` et `allowedHosts` configurables
   (`VITE_DEV_HOST`, `VITE_DEV_ALLOWED_HOSTS`) pour servir en conteneur.
+
+## 9 bis. Contrat vérifié contre le backend réel
+
+Le backend (`CircoH6/Portfolio_Backend`, Laravel) a été cloné et lu. Points
+vérifiés ligne à ligne, et non plus déduits :
+
+- **Authentification** : `config/sanctum.php` + `config/cors.php` →
+  `supports_credentials: false`, jetons Bearer (`createToken('api')`),
+  `POST /auth/login` → `{ token, user }`. Le stockage du jeton en
+  `localStorage` est donc le bon mécanisme. Aucun flux CSRF/cookie requis.
+- **`exposed_headers: ['Content-Disposition']`** — le nom de fichier du PDF est
+  bien lisible en cross-origin : la correction `rawResponse` est exploitable.
+- **Enveloppe** `{ success, message, data | errors }` conforme
+  (`ApiResponse` trait).
+- **Règles de validation identiques au front** : contact (`name`/`email`/
+  `subject` ≤ 255, `message` 10–5000), profil (`short_bio` ≤ 500,
+  `long_bio` ≤ 20000, `website` URL), CV (`name` ≤ 150, `slug` ≤ 180).
+- **Upload photo** : champ `photo`, `mimes:jpg,jpeg,png,webp`, `max:4096` —
+  exactement la validation locale de `PhotoUploader`.
+- **Pagination** : `{ projects, pagination: { current_page, per_page, total,
+  last_page } }`, idem pour les messages (`+ unread_count`).
+- **Constructeur de CV** : `syncSelections()` utilise la **position dans le
+  tableau** `*_ids[]` comme `display_order` → l'ordre envoyé par le front est
+  bien celui affiché. `GET /admin/cv/{id}` charge toutes les relations
+  (`profile.contactMethods`, `projects.technologies`, `skills.skillCategory`,
+  `experiences`, `educations`, `certifications`), donc l'aperçu admin dispose
+  de tout.
+- **`CvBuilderService`** : la transformation `utils/cv-data.js` reproduit
+  fidèlement la sortie (`skills` groupées par catégorie, dates `m/Y` pour
+  expériences/certifications et `Y` pour formations, filtrage `show_*`).
+- **Nom du PDF** : `CV-<slug>.pdf` (slug nettoyé `[a-z0-9-]`) — identique à
+  `cvPdfFilename()`.
+- **Modèle de CV** : la migration n'offre que `default` ; le front ne propose
+  rien d'autre.
+- **Messages** : `show()` fait passer `new` → `read` côté serveur ;
+  `MessagesView` recharge la liste après consultation, le compteur non-lus
+  reste donc juste.
+
+**Reste non vérifié** : aucun test d'intégration *live* (le backend n'a pas été
+exécuté ici — pas de SGBD ni de PHP dans cet environnement). La conformité est
+établie par lecture du code, pas par échange HTTP réel.
 
 
 ## 10. Prochaines étapes recommandées
 
-1. Démarrer un SGBD (MySQL ou ajouter le driver SQLite au PHP) puis exécuter
-   `php artisan migrate --seed` pour un **test d'intégration live** bout-en-bout.
+1. **Test d'intégration live** : démarrer le backend avec un SGBD
+   (`php artisan migrate --seed`) puis valider les parcours réels — login,
+   CRUD, upload photo, export PDF. C'est le seul point encore jamais exécuté.
 2. Ajouter des tests d'intégration front (Axios mocké sur les parcours CRUD
-   complets) une fois l'API joignable.
+   complets).
 3. Prérendu/SSR (Nuxt ou `vite-ssg`) si le référencement devient prioritaire,
    car le rendu 100 % client limite l'indexation.
-4. Exposer côté backend les champs de visibilité dans les Resources admin pour
-   supprimer les mentions d'incertitude dans les formulaires.
+4. Côté backend, exposer `is_visible`/`is_public` dans `SkillResource`,
+   `ExperienceResource`, `EducationResource`, `CertificationResource`,
+   `LanguageResource` et `is_public` dans `ContactMethodResource` — comme le
+   fait déjà `ProjectResource` — pour supprimer les mentions d'incertitude
+   restantes dans les formulaires.
 5. Internationaliser (i18n) les libellés pour exploiter pleinement la notion de
    langue de CV déjà présente dans le modèle.
