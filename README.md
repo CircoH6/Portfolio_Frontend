@@ -13,8 +13,10 @@ d'une source de données unique, connecté à l'API REST Laravel (`/api/v1`).
 
 ## 1. Prérequis
 
-- **Node.js ≥ 20** (testé avec Node 24 / npm 10+)
-- Le back-end Laravel démarré et accessible (voir `VITE_API_URL`).
+- **Node.js ≥ 20** (vérifié ici avec Node 22.22.3 / npm 10.9.8)
+- Le back-end Laravel démarré et accessible (voir `VITE_API_URL`). Sans
+  back-end, le site démarre quand même : chaque section affiche son état
+  d'erreur réseau ou son état vide, jamais de contenu inventé.
 
 ## 2. Installation
 
@@ -33,6 +35,10 @@ npx vitest run            # tests unitaires
 | ----------------- | ------------------------------- | -------------------------------------- |
 | `VITE_API_URL`    | `http://localhost:8000/api/v1` | URL de base de l'API REST Laravel      |
 | `VITE_APP_NAME`   | `Portfolio`                     | Nom utilisé dans les titres de page    |
+| `VITE_DEV_HOST`   | `0.0.0.0` (dev server)          | Interface d'écoute de Vite (dev)       |
+| `VITE_DEV_ALLOWED_HOSTS` | `.e2b.app`               | Hôtes autorisés par le dev server      |
+
+Les deux dernières variables ne concernent que le serveur de développement.
 
 Aucune clé secrète n'est présente côté client.
 
@@ -163,20 +169,54 @@ charge `data` de l'enveloppe `{ success, message, data }`.
 
 ```
 npm run build   → succès (dist/ généré, aucune erreur de compilation)
-npm test        → 7 fichiers, 54 tests, tous verts
+npm test        → 10 fichiers, 80 tests, tous verts
 ```
 
-- `api-client.spec.js` — intercepteurs, enveloppe, 401/422/404, téléchargement PDF.
+- `api-client.spec.js` — intercepteurs, enveloppe, 401/422/404, erreur réseau.
+- `pdf-download.spec.js` — export PDF **dans la vraie chaîne d'intercepteurs
+  Axios** (seul l'`adapter` transport est remplacé) : Blob et type MIME, nom de
+  fichier `Content-Disposition` (forme simple et RFC 5987 avec accents), 404 /
+  500 dont le corps JSON arrive en Blob, export refusé avec un statut 200, et
+  déclenchement réel du téléchargement par `saveBlob`.
 - `auth.store.spec.js` — login/logout/init, persistance du jeton, nettoyage.
 - `router-guard.spec.js` — protection réelle des routes privées (redirection
   vers la connexion + retour à la page demandée).
+- `home-view.spec.js` — **test de composant** : rendu du profil fourni par
+  l'API, état d'erreur réseau (message affiché + bouton « Réessayer »
+  fonctionnel), états vides, données dynamiques.
+- `contact-form.spec.js` — **test de composant** : validation locale,
+  `aria-invalid`, erreurs de validation 422 associées aux champs, confirmation
+  d'envoi, erreurs réseau et 500 affichées sans faux succès.
 - `cv-data.spec.js` — transformation Resource → « CV Data » (groupement,
   dates, options d'affichage, nom de fichier PDF).
 - `validators`, `dates`, `contact-links` — règles de validation, formats de
   dates, protocoles `tel:`/`mailto:`/WhatsApp.
 
-Serveur de dev vérifié : `npm run dev` répond **HTTP 200** avec `#app` et
-`/src/main.js` servis.
+Serveur de dev vérifié : `npm run dev` répond **HTTP 200** sur `/`,
+`/src/main.js`, `/src/styles/main.css` et sur une route profonde (`/projets`,
+repli history). Build CSS vérifié : les tokens de la palette (`#050505`,
+`#161616`, `#252525`, `#C6AD7A`, `#A88D59`, `#A1A1AA`, `#F5F5F5`) et les
+utilitaires (`bg-ink`, `text-gold`, `border-line`, `container-page`, `.panel`),
+ainsi que `prefers-reduced-motion` et `focus-visible`, sont bien émis.
+
+### Corrections apportées lors de la revue
+
+- **Export PDF — nom de fichier perdu.** L'intercepteur de réponse réduisait
+  toute réponse à `response.data`, donc `api.download()` ne pouvait plus lire
+  les en-têtes : `Content-Disposition` était ignoré et chaque PDF partait sous
+  le nom de repli `fichier.pdf` (le nom construit côté client masquait le
+  problème). Un drapeau `rawResponse` conserve désormais la réponse complète
+  pour les téléchargements binaires. Vérifié par `pdf-download.spec.js`, qui
+  **échoue (3 tests) contre l'ancien code**.
+- **Export PDF — messages d'erreur perdus.** Avec `responseType: 'blob'`, un
+  corps d'erreur JSON arrivait sous forme de `Blob` et produisait un message
+  générique (« Erreur serveur (500). »). L'intercepteur décode maintenant ces
+  corps pour restituer le message réel du backend.
+- Suppression de `src/_enc_test.txt`, fichier de brouillon (test d'encodage)
+  référencé nulle part.
+- `vite.config.js` : `host` et `allowedHosts` configurables
+  (`VITE_DEV_HOST`, `VITE_DEV_ALLOWED_HOSTS`) pour servir en conteneur.
+
 
 ## 10. Prochaines étapes recommandées
 
