@@ -89,7 +89,10 @@ function extractMessage(payload, fallback) {
 }
 
 http.interceptors.response.use(
-  (response) => response.data, // les services consomment l'enveloppe
+  // Les services consomment l'enveloppe ; les téléchargements binaires
+  // (config.rawResponse) conservent la réponse complète afin que les
+  // en-têtes — dont Content-Disposition — restent accessibles.
+  (response) => (response.config?.rawResponse ? response : response.data),
   async (error) => {
     if (!error.response) {
       throw new ApiError({
@@ -99,7 +102,20 @@ http.interceptors.response.use(
       })
     }
 
-    const { status, data } = error.response
+    const { status } = error.response
+    let data = error.response.data
+
+    // responseType 'blob' : un corps d'erreur JSON arrive sous forme de Blob.
+    // On le décode pour ne pas perdre le message réel renvoyé par le backend
+    // (validation, ressource introuvable, export refusé…).
+    if (typeof Blob !== 'undefined' && data instanceof Blob) {
+      try {
+        data = JSON.parse(await data.text())
+      } catch {
+        data = {}
+      }
+    }
+
     const payload = data && typeof data === 'object' ? data : {}
     const message = extractMessage(
       payload,
@@ -164,6 +180,16 @@ function filenameFromDisposition(value) {
   return plain ? plain[1].trim() : null
 }
 
+/** Lit un en-tête quelle que soit sa forme (AxiosHeaders ou objet simple). */
+function headerValue(headers, name) {
+  if (!headers) return null
+  if (typeof headers.get === 'function') {
+    const value = headers.get(name)
+    if (value) return value
+  }
+  return headers[name] ?? headers[name.toLowerCase()] ?? null
+}
+
 /**
  * Téléchargement binaire (PDF) : nom de fichier lu dans Content-Disposition
  * (header exposé par la config CORS backend). Les erreurs JSON sont
@@ -173,29 +199,19 @@ function filenameFromDisposition(value) {
 async function download(url, config = {}) {
   let response
   try {
-    response = await http.get(url, { ...config, responseType: 'blob', timeout: 60000 })
+    response = await http.get(url, {
+      ...config,
+      responseType: 'blob',
+      rawResponse: true, // conserve les en-têtes (voir intercepteur)
+      timeout: 60000,
+    })
   } catch (error) {
+    // Le corps d'erreur Blob a déjà été décodé par l'intercepteur.
     if (error instanceof ApiError) throw error
-    const blob = error.response?.data
-    if (blob instanceof Blob && blob.type.includes('json')) {
-      let payload = {}
-      try {
-        payload = JSON.parse(await blob.text())
-      } catch {
-        /* corps illisible */
-      }
-      throw new ApiError({
-        status: error.response.status || 400,
-        message: extractMessage(payload, 'Échec du téléchargement.'),
-        errors: payload.errors || null,
-      })
-    }
     throw new ApiError({ status: 0, message: 'Échec du téléchargement.' })
   }
 
-  // En responseType blob, l'intercepteur renvoie le Blob lui-même
-  // (plus d'enveloppe) : on distingue les deux formes possibles.
-  const blob = response instanceof Blob ? response : response?.data
+  const blob = response?.data ?? response
   if (blob instanceof Blob && blob.type.includes('json')) {
     let payload = {}
     try {
@@ -210,8 +226,10 @@ async function download(url, config = {}) {
     })
   }
 
-  const headers = response?.headers || {}
-  return { blob, filename: filenameFromDisposition(headers['content-disposition']) }
+  return {
+    blob,
+    filename: filenameFromDisposition(headerValue(response?.headers, 'content-disposition')),
+  }
 }
 
 /** Déclenche le téléchargement d'un Blob dans le navigateur. */

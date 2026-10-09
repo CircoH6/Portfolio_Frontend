@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, Pencil, Trash2, FileDown, ExternalLink } from '@lucide/vue'
@@ -33,10 +33,10 @@ function edit(item) {
 async function create() {
   try {
     const created = await cvService.admin.create({ name: 'Nouveau CV', template: 'default', language: 'fr' })
-    toast.success('CV crÃ©Ã©. Configurez-le maintenant.')
+    toast.success('CV créé. Configurez-le maintenant.')
     router.push({ name: 'admin-cv-editor', params: { id: created.id } })
   } catch (error) {
-    toast.error(error?.message || 'ï¿½?chec de la crÃ©ation du CV.')
+    toast.error(error?.message || 'Échec de la création du CV.')
   }
 }
 
@@ -45,9 +45,9 @@ async function download(item) {
   try {
     const { blob, filename } = await cvService.downloadAdminPdf(item.id)
     api.saveBlob(blob, filename || cvPdfFilename(item.slug))
-    toast.success('PDF tÃ©lÃ©chargÃ©.')
+    toast.success('PDF téléchargé.')
   } catch (error) {
-    toast.error(error?.message || 'ï¿½?chec de la gÃ©nÃ©ration du PDF.')
+    toast.error(error?.message || 'Échec de la génération du PDF.')
   } finally {
     downloadingId.value = null
   }
@@ -56,16 +56,16 @@ async function download(item) {
 async function remove(item) {
   const ok = await confirmStore.confirm({
     title: 'Supprimer le CV',
-    message: `Supprimer Â« ${item.name} Â» ? Cette action est dÃ©finitive.`,
+    message: `Supprimer « ${item.name} » ? Cette action est définitive.`,
     confirmLabel: 'Supprimer',
   })
   if (!ok) return
   try {
     await cvService.admin.remove(item.id)
-    toast.success('CV supprimÃ©.')
+    toast.success('CV supprimé.')
     crud.load({ per_page: 100 }).catch(() => {})
   } catch (error) {
-    toast.error(error?.message || 'ï¿½?chec de la suppression.')
+    toast.error(error?.message || 'Échec de la suppression.')
   }
 }
 

@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Plus, Pencil, Trash2, Images } from '@lucide/vue'
 import { useCrud } from '@/composables/useCrud'
@@ -155,7 +155,7 @@ async function onSave(values) {
 async function onDelete(item) {
   const ok = await confirmStore.confirm({
     title: 'Supprimer le projet',
-    message: `Supprimer Â« ${item.title} Â» et ses images ? Action definitive.`,
+    message: `Supprimer « ${item.title} » et ses images ? Action définitive.`,
     confirmLabel: 'Supprimer',
   })
   if (!ok) return
@@ -179,7 +179,7 @@ function goToPage(next) {
   <div class="flex flex-col gap-6">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <p class="max-w-2xl text-sm text-muted">
-        Projets affichÃ©s sur le site public et sÃ©lectionnables dans les CV.
+        Projets affichés sur le site public et sélectionnables dans les CV.
       </p>
       <AppButton @click="openCreate">
         <Plus class="size-4" aria-hidden="true" />
@@ -202,7 +202,7 @@ function goToPage(next) {
       </select>
     </div>
 
-    <LoadingState v-if="crud.loading.value" label="Chargementï¿½?ï¿½" />
+    <LoadingState v-if="crud.loading.value" label="Chargement…" />
     <ErrorState v-else-if="crud.error.value" :error="crud.error.value" @retry="load()" />
 
     <template v-else>
@@ -217,12 +217,12 @@ function goToPage(next) {
         </template>
         <template #cell-technologies="{ item }">
           <span class="text-sm text-muted">
-            {{ (item.technologies || []).map((t) => t.name).join(', ') || 'ï¿½?"' }}
+            {{ (item.technologies || []).map((t) => t.name).join(', ') || '—' }}
           </span>
         </template>
         <template #cell-featured="{ item }">
           <AppBadge v-if="item.is_featured" tone="gold">Oui</AppBadge>
-          <span v-else class="text-sm text-muted">ï¿½?"</span>
+          <span v-else class="text-sm text-muted">—</span>
         </template>
         <template #cell-visible="{ item }">
           <AppBadge v-if="item.is_visible" tone="success">Oui</AppBadge>
@@ -232,7 +232,7 @@ function goToPage(next) {
           <button
             type="button"
             class="rounded-lg border border-line-2 p-2 text-muted transition-colors hover:border-gold hover:text-gold"
-            :aria-label="`GÃ©rer les images de ${item.title}`"
+            :aria-label="`Gérer les images de ${item.title}`"
             @click="imagesFor = item"
           >
             <Images class="size-4" aria-hidden="true" />
